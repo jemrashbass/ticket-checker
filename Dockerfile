@@ -1,4 +1,3 @@
-# Dockerfile
 FROM node:16-slim
 
 WORKDIR /app
@@ -8,9 +7,10 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
+# Copy package.json and package-lock.json
 COPY ./app/package*.json ./
+
+# Install dependencies
 RUN npm install
 
 # Start the application
