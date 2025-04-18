@@ -14,4 +14,4 @@ COPY ./app/package*.json ./
 RUN npm install
 
 # Start the application
-CMD ["node", "test.js"]
+CMD ["node", "index.js"]
