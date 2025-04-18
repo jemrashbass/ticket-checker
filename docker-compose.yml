@@ -1,0 +1,12 @@
+# docker-compose.yml
+version: '3'
+
+services:
+  ticket-checker:
+    build: .
+    container_name: wigmore-ticket-checker
+    restart: unless-stopped
+    volumes:
+      - ./app:/app
+    env_file:
+      - .env
