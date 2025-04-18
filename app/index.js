@@ -1,8 +1,8 @@
 // Wigmore Hall Ticket Availability Checker
-// This script checks Wigmore Hall's website for ticket availability and sends WhatsApp notifications
+// This script checks Wigmore Hall's website for ticket availability and sends Gmail notifications
 
 // Required packages (you'll need to install these):
-// npm install axios cheerio node-schedule twilio dotenv
+// npm install axios cheerio node-schedule nodemailer dotenv
 
 // Load environment variables from .env file
 require('dotenv').config();
@@ -10,33 +10,38 @@ require('dotenv').config();
 const axios = require('axios');
 const cheerio = require('cheerio');
 const schedule = require('node-schedule');
-const twilio = require('twilio');
+const nodemailer = require('nodemailer');
 
-// Initialize Twilio client for WhatsApp messaging
-// You'll need to sign up for Twilio and use their WhatsApp API
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+// Configure Gmail transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD // This should be an app password, not your regular Gmail password
+  }
+});
 
-// Your WhatsApp number (where you want to receive notifications)
-const yourWhatsAppNumber = process.env.YOUR_WHATSAPP_NUMBER;
-
-// Twilio's WhatsApp number (provided by Twilio when you set up WhatsApp integration)
-const twilioWhatsAppNumber = process.env.TWILIO_WHATSAPP_NUMBER;
+// Email notification settings
+const notificationEmail = process.env.NOTIFICATION_EMAIL; // Where to send notifications
 
 // Wigmore Hall concert URLs to monitor
 // Add URLs of the sold-out concerts you're interested in
 const concertsToMonitor = [
   {
-    name: "Example Concert 1",
-    url: "https://wigmore-hall.org.uk/whats-on/example-concert-1",
+    name: "Chamber_Tots 1",
+    url: "https://www.wigmore-hall.org.uk/whats-on/202504241015",
     lastChecked: null,
     wasAvailable: false
   },
   {
-    name: "Example Concert 2",
-    url: "https://wigmore-hall.org.uk/whats-on/example-concert-2",
+    name: "Chamber_Tots 2",
+    url: "https://www.wigmore-hall.org.uk/whats-on/202504241145",
+    lastChecked: null,
+    wasAvailable: false
+  }
+  {
+    name: "Christian Gerhaher and Gerold Huber",
+    url: "https://www.wigmore-hall.org.uk/whats-on/202504241930",
     lastChecked: null,
     wasAvailable: false
   }
@@ -66,7 +71,7 @@ async function checkTicketAvailability(concert) {
     
     // If tickets are available and weren't available last time we checked, send notification
     if (ticketsAvailable && !concert.wasAvailable) {
-      await sendWhatsAppNotification(concert);
+      await sendEmailNotification(concert);
       concert.wasAvailable = true;
     } else if (!ticketsAvailable) {
       concert.wasAvailable = false;
@@ -79,18 +84,25 @@ async function checkTicketAvailability(concert) {
   }
 }
 
-// Function to send WhatsApp notification
-async function sendWhatsAppNotification(concert) {
+// Function to send email notification
+async function sendEmailNotification(concert) {
   try {
-    const message = await twilioClient.messages.create({
-      body: `🎵 Tickets now available for "${concert.name}" at Wigmore Hall! Book here: ${concert.url}`,
-      from: `whatsapp:${twilioWhatsAppNumber}`,
-      to: `whatsapp:${yourWhatsAppNumber}`
-    });
+    const mailOptions = {
+      from: process.env.GMAIL_USER,
+      to: notificationEmail,
+      subject: `🎵 Tickets Available: ${concert.name} at Wigmore Hall`,
+      html: `
+        <h2>Tickets are now available!</h2>
+        <p><strong>Concert:</strong> ${concert.name}</p>
+        <p><strong>Book here:</strong> <a href="${concert.url}">${concert.url}</a></p>
+        <p>Hurry! Returned tickets often sell quickly.</p>
+      `
+    };
     
-    console.log(`WhatsApp notification sent for ${concert.name}. SID: ${message.sid}`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Email notification sent for ${concert.name}. Message ID: ${info.messageId}`);
   } catch (error) {
-    console.error('Error sending WhatsApp notification:', error.message);
+    console.error('Error sending email notification:', error.message);
   }
 }
 
@@ -118,12 +130,6 @@ function scheduleChecks() {
   
   return job;
 }
-
-// Create a .env file with the following variables:
-// TWILIO_ACCOUNT_SID=your_twilio_account_sid
-// TWILIO_AUTH_TOKEN=your_twilio_auth_token
-// YOUR_WHATSAPP_NUMBER=your_whatsapp_number (with country code, e.g. +447123456789)
-// TWILIO_WHATSAPP_NUMBER=twilio_whatsapp_number (provided by Twilio)
 
 // Start the scheduler
 const job = scheduleChecks();
